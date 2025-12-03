@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import redis from '../db/redis.js';
 async function registerUser(req,res) {
-    const {username,email,password,fullName:{firstName,lastName}}= req.body;
+    const {username,email,password,fullName:{firstName,lastName},role}= req.body;
 
     const isUserAlreadyExists = await userModel.findOne({
         $or:[
@@ -19,7 +19,8 @@ async function registerUser(req,res) {
         username,
         email,
         password:hash,
-        fullName:{firstName,lastName}
+        fullName:{firstName,lastName},
+        role:role||'user'
     })
     const token = jwt.sign({
         id:user._id,
@@ -98,5 +99,62 @@ async function logoutUser(req,res){
     return res.status(200).json({message:"Logged out successfully"});
 }
 
+async function getUserAddresses(req,res){
+    const id = req.user.id;
+    const user = await userModel.findById(id).select('addresses');
+    if(!user){
+        return res.status(404).json({message:"user not found"});
+    }
+    return res.status(200).json({
+        message:"user addresses fetched successfully",
+        addresses:user.addresses
+    })
+}
 
-export default {registerUser, loginUser,getCurrentUser,logoutUser};
+async function addUserAddress(req,res){
+    const id = req.user.id;
+    const{street,city,state,pincode,country,phone,isDefault}= req.body;
+    const user = await userModel.findOneAndUpdate({_id:id},{
+        $push:{addresses:{street,city,state,pincode,country,isDefault}}
+
+    }
+    ,{new:true});
+    if(!user){
+        return res.status(404).json({message:"User not fpund"});
+    }
+    return res.status(201).json({
+        message:"Address added successfully",
+        address:user.addresses[user.addresses.length-1]
+    });
+}
+
+async function deleteUserAddress(req,res) {
+    const id = req.user.id;
+    const {addressId} = req.params;
+
+    const isAddressExists = await userModel.findOne({_id:id,'addresses._id':addressId});
+     if(!isAddressExists){
+        return res.status(404).json({message:" Address not found "});
+
+    }
+
+    const user = await userModel.findOneAndUpdate({_id:id},{
+        $pull:{
+            addresses:{_id:addressId}
+        }
+    },{new:true});
+    if(!user){
+        return res.status(404).json({message:"User not found"});
+    }
+    const addressExists = user.addresses.some(addr => addr._id.toString()=== addressId);
+    if(!addressExists){
+        return res.status(500).json({message:"Failed to delete Address"});
+
+    }
+    return res.status(200).json({
+        message:"Address deleted successfully",
+        addresses:user.addresses
+    });
+}
+
+export default {registerUser, deleteUserAddress,loginUser,getCurrentUser,logoutUser,getUserAddresses,addUserAddress};

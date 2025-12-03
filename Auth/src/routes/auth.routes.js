@@ -15,4 +15,9 @@ router.get('/api/auth/me',authMiddleware.authMiddleware,authController.getCurren
 
 router.get('/api/auth/logout',authController.logoutUser);
 
+router.get('/api/auth/user/users/me/addresses',authController.getUserAddresses,authMiddleware.authMiddleware);
+
+router.post('/users/me/addresses',authMiddleware.authMiddleware,validators.addUserAddressValidations,authController.addUserAddress);
+
+router.delete('/api/auth/users/me/addresses/:addressId',authMiddleware.authMiddleware,authController.deleteUserAddress);
 export default router;
