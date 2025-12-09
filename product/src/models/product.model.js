@@ -31,4 +31,5 @@ const productSchema = new mongoose.Schema({
 })
 
 const productModel = mongoose.model('Product', productSchema);
+productSchema.index({title:'text' , description:'text'});
 export default productModel;

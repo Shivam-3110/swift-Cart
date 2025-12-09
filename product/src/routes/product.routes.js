@@ -6,8 +6,12 @@ import multer from 'multer';
 const router = express.Router();
 
 const upload = multer({ storage:multer.memoryStorage()});
-
-router.post('/',createAuthMiddleware(['admin','seller']), upload.array('image',5),validators.createProductValidators,productController.createProduct);
+//sellers api
+router.post('/',createAuthMiddleware(['admin','seller']), upload.array('images',5),validators.createProductValidators,productController.createProduct);
+//get product by search
+router.get('/',productController.getProducts)
+//get products /id
+router.get('/:id',productController.getProductById);
 
 export default router;
 
