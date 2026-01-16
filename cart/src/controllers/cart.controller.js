@@ -2,9 +2,9 @@ import cartModel from '../models/cart.model.js';
 
 async function getCart(req,res){
     const user = req.user;
-    let cart = await cartModel.findOne({user: user._id}).populate('items.productId');
+    let cart = await cartModel.findOne({user: user.id}).populate('items.productId');
     if(!cart){
-       cart = new cartModel({user: user._id, items: []});
+       cart = new cartModel({user: user.id, items: []});
        await cart.save();
     }
     res.status(200).json({
@@ -21,10 +21,10 @@ async function getCart(req,res){
 async function addItemToCart(req, res){
     const {productId, quantity} =  req.body;
     const user = req.user;
-    let cart = await cartModel.findOne({user: user._id});
+    let cart = await cartModel.findOne({user: user.id});
     if(!cart){
         cart = new cartModel({
-            user: user._id,
+            user: user.id,
             items: []
         });
     }
@@ -41,7 +41,7 @@ async function updateItemQuantity(req,res){
     const {productId} = req.params;
     const {quantity} = req.body;
     const user = req.user;
-    let cart = await cartModel.findOne({user: user._id});
+    let cart = await cartModel.findOne({user: user.id});
     if(!cart){
         return res.status(404).json({message: 'Cart not found'});
     }
