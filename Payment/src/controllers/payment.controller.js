@@ -119,7 +119,7 @@ async function verifyPayment(req, res) {
 }
 
 
-module.exports = {
+export default {
     createPayment,
     verifyPayment
 }

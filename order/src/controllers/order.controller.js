@@ -1,5 +1,7 @@
 import orderModel from "../models/order.model.js";
 import axios from "axios";
+import { publishToQueue } from "../broker/broker.js";
+
 
 async function createOrder(req, res) {
     const user = req.user;
@@ -51,6 +53,7 @@ const token = req.cookies?.token|| req.headers?.authorization?.split(" ")[1];
                 country:req.body.shippingAddress.country,
             }
        })
+         await publishToQueue("ORDER_SELLER_DASHBOARD.ORDER_CREATED",order )
        res.status(201).json({order})
    } catch (error) {
     res.status(500).json({message:"Internal server error", error:error.message} );
@@ -95,7 +98,7 @@ async function getOrderById(req, res){
     }
     }
 
-    async function cancelOrderById(req, res) {
+  async function cancelOrderById(req, res) {
     const user = req.user;
     const orderId = req.params.id;
 

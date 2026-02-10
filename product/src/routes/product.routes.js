@@ -16,7 +16,7 @@ router.patch("/:id",createAuthMiddleware(["seller"]),productController.updatePro
 
 router.delete('/:id',createAuthMiddleware(["seller"]),productController.deleteProduct);
 
-router.get("/seller", createAuthMiddleware(["seller"]), productController.getProductBySeller);
+router.get("/seller", createAuthMiddleware(["seller"]), productController.getProductsBySeller);
 
 //get product by search
 router.get('/',productController.getProducts);
