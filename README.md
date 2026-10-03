@@ -1,342 +1,664 @@
-# Marketplace with AI Buddy
+# 🛒 SwiftCart — AI-Powered E-Commerce Microservices
 
-A full-stack **microservices-based e-commerce marketplace** built with Node.js and Express. The platform includes an AI-powered shopping assistant that can search products and manage the cart via natural language using LangChain and Google Gemini.
+SwiftCart is a **scalable, microservice-based e-commerce platform** designed to demonstrate how modern backend systems can be built using independent services, asynchronous communication, caching, containerization, and AI-powered shopping assistance.
+
+The project follows a **distributed architecture**, where different business responsibilities are separated into independent services that communicate through APIs and message queues.
 
 ---
 
-## Architecture Overview
+## 🚀 Key Features
 
-The project is structured as independent microservices, each with its own database connection, routes, and responsibilities. Services communicate asynchronously via **RabbitMQ** message queues.
+* 🛍️ Product management
+* 🛒 Shopping cart management
+* 📦 Order management
+* 🔔 Asynchronous notification system
+* ⚡ Redis-based caching
+* 📨 RabbitMQ message broker
+* 🤖 AI Shopping Buddy
+* 🔐 Authentication and authorization
+* 🗄️ MongoDB-based persistence
+* 🐳 Dockerized services
+* 🔄 Event-driven communication
+* 📈 Scalable microservice architecture
+* 🧩 Independent service deployment
 
+---
+
+## 🏗️ Architecture
+
+```text
+                         ┌────────────────────┐
+                         │      Client        │
+                         │   Web / Frontend   │
+                         └─────────┬──────────┘
+                                   │
+                                   ▼
+                         ┌────────────────────┐
+                         │    API Gateway     │
+                         └─────────┬──────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+              ▼                    ▼                    ▼
+       ┌─────────────┐      ┌─────────────┐      ┌──────────────┐
+       │   Product   │      │    Cart     │      │    Order     │
+       │   Service   │      │   Service   │      │   Service    │
+       └──────┬──────┘      └──────┬──────┘      └──────┬───────┘
+              │                    │                    │
+              ▼                    ▼                    ▼
+       ┌─────────────┐      ┌─────────────┐      ┌──────────────┐
+       │   MongoDB   │      │    Redis    │      │   MongoDB    │
+       └─────────────┘      └─────────────┘      └──────────────┘
+                                   │
+                                   │ Events
+                                   ▼
+                         ┌────────────────────┐
+                         │      RabbitMQ      │
+                         │   Message Broker   │
+                         └─────────┬──────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+             ┌─────────────┐              ┌──────────────┐
+             │ Notification│              │ AI Shopping  │
+             │   Service   │              │    Buddy     │
+             └─────────────┘              └──────────────┘
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Auth      │    │   Product   │    │    Cart     │    │   Order     │
-│  :3000      │    │  :3001      │    │  :3002      │    │  :3003      │
-└──────┬──────┘    └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
-       │                  │                  │                  │
-       └──────────────────┴──────────────────┴──────────────────┘
-                                    │
-                               RabbitMQ
-                                    │
-       ┌──────────────────┬─────────┴──────────┬──────────────────┐
-┌──────┴──────┐    ┌──────┴──────┐    ┌────────┴────┐    ┌────────┴────┐
-│   Payment   │    │Notification │    │   Seller    │    │  AI Buddy   │
-│  :3004      │    │  :3005      │    │  Dashboard  │    │  :3006      │
-└─────────────┘    └─────────────┘    │  :3007      │    └─────────────┘
-                                      └─────────────┘
+
+---
+
+## 🧩 Microservices
+
+### 1. Product Service
+
+Responsible for managing the product catalog.
+
+**Responsibilities:**
+
+* Create products
+* Update products
+* Delete products
+* Fetch product details
+* Product search
+* Product availability
+* Product inventory information
+
+**Technology:**
+
+* Node.js
+* Express.js
+* MongoDB
+* Mongoose
+* Redis
+
+---
+
+### 2. Cart Service
+
+Handles user shopping carts.
+
+**Responsibilities:**
+
+* Add products to cart
+* Remove products
+* Update cart items
+* Retrieve user cart
+* Calculate cart totals
+* Manage cart state
+
+Redis can be used for fast access to frequently requested cart data.
+
+---
+
+### 3. Order Service
+
+Responsible for processing customer orders.
+
+**Responsibilities:**
+
+* Create orders
+* Validate cart information
+* Calculate order totals
+* Maintain order status
+* Store order history
+* Publish order-related events
+
+Example order lifecycle:
+
+```text
+Cart
+  │
+  ▼
+Create Order
+  │
+  ▼
+Validate Order
+  │
+  ▼
+Store Order
+  │
+  ▼
+Publish Event
+  │
+  ▼
+RabbitMQ
 ```
 
 ---
 
-## Services
+### 4. Notification Service
 
-### 1. Auth Service (`/Auth`)
-Handles all user identity and session management.
+The Notification Service consumes events from RabbitMQ and performs notification-related tasks.
 
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| POST | `/api/auth/register` | Register a new user | No |
-| POST | `/api/auth/login` | Login with email/username + password | No |
-| GET | `/api/auth/me` | Get current authenticated user | Yes |
-| GET | `/api/auth/logout` | Logout and blacklist token | No |
-| GET | `/api/auth/user/users/me/addresses` | Get user addresses | No* |
-| POST | `/users/me/addresses` | Add a new address | Yes |
-| DELETE | `/api/auth/users/me/addresses/:addressId` | Delete an address | Yes |
+For example:
 
-**Key Features:**
-- Password hashing with `bcryptjs`
-- JWT tokens stored in HTTP-only cookies
-- Token blacklisting on logout via **Redis**
-- Publishes `AUTH_NOTIFICATION.USER_CREATED` and `AUTH_SELLER_DASHBOARD.USER_CREATED` events on registration
+```text
+Order Created
+      │
+      ▼
+   RabbitMQ
+      │
+      ▼
+Notification Service
+      │
+      ├──► Email
+      │
+      └──► Other Notifications
+```
 
-**User Roles:** `user`, `seller`
+This keeps notification processing independent from the Order Service.
 
 ---
 
-### 2. Product Service (`/product`)
-Manages product listings with image upload support.
+### 5. 🤖 AI Shopping Buddy
 
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| POST | `/api/products` | Create a product | seller / admin |
-| GET | `/api/products` | Search/list products | No |
-| GET | `/api/products/:id` | Get product by ID | No |
-| PATCH | `/api/products/:id` | Update product | seller |
-| DELETE | `/api/products/:id` | Delete product | seller |
-| GET | `/api/products/seller` | Get seller's own products | seller |
+SwiftCart also includes an AI-powered shopping assistant designed to improve the shopping experience.
 
-**Key Features:**
-- Image uploads via **ImageKit** (up to 5 images per product)
-- Full-text search on `title` and `description` using MongoDB text index
-- Price filtering with `minprice` / `maxprice` query params
-- Pagination with `skip` and `limit`
-- Publishes `PRODUCT_SELLER_DASHBOARD.PRODUCT_CREATED` and `PRODUCT_NOTIFICATION.PRODUCT_CREATED` events
+The AI assistant can help users:
 
----
+* Discover products
+* Understand product features
+* Compare products
+* Answer shopping-related questions
+* Recommend products based on requirements
+* Assist users during product discovery
 
-### 3. Cart Service (`/cart`)
-Manages per-user shopping carts stored in MongoDB.
+Example:
 
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| GET | `/api/cart` | Get current user's cart | user |
-| POST | `/api/cart/items` | Add item to cart | user |
-| PATCH | `/api/cart/items/:productId` | Update item quantity | user |
+```text
+User:
+"I need a laptop for programming under ₹70,000."
 
-**Key Features:**
-- Auto-creates an empty cart if none exists
-- Increments quantity if item already exists in cart
+                │
+                ▼
 
----
+          AI Shopping Buddy
+                │
+                ▼
+        Product Service
+                │
+                ▼
+       Relevant Products
+                │
+                ▼
+        AI Recommendation
+```
 
-### 4. Order Service (`/order`)
-Handles order creation by fetching cart and product data from other services via HTTP.
-
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| POST | `/api/orders` | Create order from cart | user |
-| GET | `/api/orders/me` | Get current user's orders | user |
-| GET | `/api/orders/:id` | Get order by ID | user / admin |
-| POST | `/api/orders/:id/cancel` | Cancel a pending order | user |
-| PATCH | `/api/orders/:id/address` | Update shipping address | user |
-
-**Key Features:**
-- Fetches cart from Cart Service and product details from Product Service
-- Calculates total price dynamically
-- Only `PENDING` orders can be cancelled or have address updated
-- Publishes `ORDER_SELLER_DASHBOARD.ORDER_CREATED` event
+The AI layer can be extended to use product catalog data, user preferences, and contextual conversations.
 
 ---
 
-### 5. Payment Service (`/Payment`)
-Integrates with **Razorpay** for payment processing.
+# 📨 RabbitMQ Event-Driven Architecture
 
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| POST | `/api/payments/create/:orderId` | Initiate payment for an order | user |
-| POST | `/api/payments/verify` | Verify Razorpay payment signature | user |
+SwiftCart uses **RabbitMQ** for asynchronous communication between services.
 
-**Key Features:**
-- Fetches order details from Order Service
-- Creates Razorpay order and stores payment record
-- Verifies HMAC signature on payment completion
-- Publishes payment events: `PAYMENT_INITIATED`, `PAYMENT_COMPLETED`, `PAYMENT_FAILED`
+Instead of tightly coupling services through direct synchronous requests, important events can be published through a message broker.
 
----
+Example:
 
-### 6. Notification Service (`/notification`)
-Listens to RabbitMQ queues and sends transactional emails via **Nodemailer** with Gmail OAuth2.
+```text
+Order Service
+     │
+     │ OrderCreated
+     ▼
+  RabbitMQ
+     │
+     ├──────────────► Notification Service
+     │
+     └──────────────► Other Consumers
+```
 
-**Listens to:**
-| Queue | Trigger |
-|-------|---------|
-| `AUTH_NOTIFICATION.USER_CREATED` | Welcome email on registration |
-| `PAYMENT_NOTIFICATION.PAYMENT_INITIATED` | Payment initiated email |
-| `PAYMENT_NOTIFICATION.PAYMENT_COMPLETED` | Payment success email |
-| `PAYMENT_NOTIFICATION.PAYMENT_FAILED` | Payment failure email |
-| `PRODUCT_NOTIFICATION.PRODUCT_CREATED` | New product notification to seller |
+### Example Events
 
----
+```text
+OrderCreated
+OrderCancelled
+PaymentCompleted
+ProductUpdated
+StockUpdated
+```
 
-### 7. Seller Dashboard (`/seller-dashboard`)
-Provides analytics and data aggregation for sellers. Maintains its own local copies of data synced via RabbitMQ.
-
-**Endpoints:**
-| Method | Route | Description | Auth Required |
-|--------|-------|-------------|---------------|
-| GET | `/metrics` | Sales, revenue, top products | seller |
-| GET | `/orders` | All orders for seller's products | seller |
-| GET | `/products` | All seller's products | seller |
-
-**Listens to:**
-- `AUTH_SELLER_DASHBOARD.USER_CREATED`
-- `PRODUCT_SELLER_DASHBOARD.PRODUCT_CREATED`
-- `ORDER_SELLER_DASHBOARD.ORDER_CREATED`
-- `PAYMENT_SELLER_DASHBOARD.PAYMENT_CREATED`
-- `PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATE`
+This architecture makes it easier to add new consumers without modifying the original producer service.
 
 ---
 
-### 8. AI Buddy (`/ai-buddy`)
-An AI-powered shopping assistant using **LangChain** + **Google Gemini 2.0 Flash**, exposed via **WebSocket**.
+# ⚡ Redis
 
-**How it works:**
-- Users connect via Socket.IO (authenticated via JWT cookie)
-- Messages are processed by a LangGraph `StateGraph` agent
-- The agent has two tools:
-  - `search_product` — searches products via Product Service API
-  - `addproducttocart` — adds a product to the user's cart via Cart Service API
-- The agent decides when to call tools and responds conversationally
+Redis is used as a high-performance in-memory data store.
 
----
+Potential use cases in SwiftCart include:
 
-## Tech Stack
+* Product caching
+* Cart storage
+* Session data
+* Frequently accessed information
+* Rate limiting
+* Temporary data
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js (ESM modules) |
-| Framework | Express.js v5 |
-| Database | MongoDB (Mongoose) |
-| Cache / Token Blacklist | Redis (ioredis) |
-| Message Broker | RabbitMQ (amqplib) |
-| Authentication | JWT + HTTP-only cookies |
-| Image Storage | ImageKit |
-| Payment Gateway | Razorpay |
-| Email | Nodemailer (Gmail OAuth2) |
-| AI Agent | LangChain + LangGraph + Google Gemini |
-| File Upload | Multer (memory storage) |
-| Validation | express-validator |
-| Testing | Jest + Supertest |
+Example:
+
+```text
+Client
+  │
+  ▼
+Product Service
+  │
+  ├──► Redis ──► Cache Hit
+  │
+  └──► MongoDB ──► Cache Miss
+```
+
+This reduces unnecessary database queries and improves response times for frequently accessed data.
 
 ---
 
-## Environment Variables
+# 🗄️ Database Architecture
 
-Each service has its own `.env` file. Common variables:
+Each microservice can maintain ownership of its own data.
+
+```text
+Product Service  ──► Product Database
+
+Cart Service     ──► Cart Data / Redis
+
+Order Service    ──► Order Database
+
+Notification     ──► Notification Data
+```
+
+This follows the microservice principle of **service-level data ownership**, reducing tight coupling between services.
+
+---
+
+# 🛠️ Tech Stack
+
+### Backend
+
+* Node.js
+* Express.js
+* JavaScript
+
+### Database
+
+* MongoDB
+* Mongoose
+
+### Caching
+
+* Redis
+
+### Message Broker
+
+* RabbitMQ
+* AMQP
+
+### AI
+
+* Google Gemini API / LLM integration
+
+### DevOps
+
+* Docker
+* Docker Compose
+
+### Development Tools
+
+* Git
+* GitHub
+* Postman
+* npm / pnpm
+
+---
+
+# 📁 Project Structure
+
+A possible project structure:
+
+```text
+SwiftCart/
+│
+├── api-gateway/
+│   ├── controllers/
+│   ├── routes/
+│   ├── middleware/
+│   ├── services/
+│   └── server.js
+│
+├── services/
+│
+│   ├── product-service/
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── server.js
+│   │
+│   ├── cart-service/
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   └── server.js
+│   │
+│   ├── order-service/
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   └── server.js
+│   │
+│   └── notification-service/
+│       ├── consumers/
+│       ├── services/
+│       └── server.js
+│
+├── ai-shopping-buddy/
+│   ├── controllers/
+│   ├── services/
+│   ├── prompts/
+│   └── server.js
+│
+├── docker-compose.yml
+├── .env.example
+├── package.json
+└── README.md
+```
+
+---
+
+# 🔄 Example Order Flow
+
+A typical SwiftCart order flow looks like:
+
+```text
+              User
+                │
+                ▼
+             Cart
+                │
+                ▼
+         Create Order
+                │
+                ▼
+         Order Service
+                │
+                ▼
+          Save Order
+                │
+                ▼
+        Publish Event
+                │
+                ▼
+            RabbitMQ
+                │
+        ┌───────┴────────┐
+        ▼                ▼
+ Notification        Other Services
+   Service
+        │
+        ▼
+   Notification
+```
+
+This allows the Order Service to complete its primary responsibility without waiting for every downstream operation.
+
+---
+
+# 🔐 Environment Variables
+
+Create a `.env` file for each service where required.
+
+Example:
 
 ```env
-MONGODB_URI=mongodb://...
+PORT=5000
+
+MONGODB_URI=your_mongodb_connection_string
+
+REDIS_URL=your_redis_connection_string
+
+RABBITMQ_URL=your_rabbitmq_connection_string
+
 JWT_SECRET=your_jwt_secret
-RABBIT_URL=amqp://localhost
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password
+
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Service-specific:
-```env
-# Product Service
-IMAGEKIT_PUBLIC_KEY=
-IMAGEKIT_PRIVATE_KEY=
-IMAGEKIT_URL_ENDPOINT=
+> ⚠️ Never commit `.env` files or API keys to GitHub.
 
-# Payment Service
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
+Add them to `.gitignore`:
 
-# Notification Service
-EMAIL_USER=
-CLIENT_ID=
-CLIENT_SECRET=
-REFRESH_TOKEN=
-
-# AI Buddy
-GOOGLE_API_KEY=
+```gitignore
+node_modules/
+.env
+.env.*
+!.env.example
 ```
 
 ---
 
-## Getting Started
+# 🐳 Running with Docker
 
-Each service is independent. To run a service:
+Make sure Docker is installed and running.
+
+Clone the repository:
 
 ```bash
-cd <service-folder>   # e.g., cd Auth
+git clone <YOUR_REPOSITORY_URL>
+cd SwiftCart
+```
+
+Build the services:
+
+```bash
+docker compose build
+```
+
+Start the application:
+
+```bash
+docker compose up
+```
+
+Run in detached mode:
+
+```bash
+docker compose up -d
+```
+
+Stop the services:
+
+```bash
+docker compose down
+```
+
+---
+
+# 💻 Running Locally
+
+Install dependencies:
+
+```bash
 npm install
+```
+
+or:
+
+```bash
+pnpm install
+```
+
+Create the required `.env` files.
+
+Start the individual services:
+
+```bash
 npm run dev
 ```
 
-Make sure RabbitMQ, MongoDB, and Redis are running before starting the services.
+Make sure the following infrastructure services are available:
 
----
-
-## Message Queue Events
-
-```
-AUTH_NOTIFICATION.USER_CREATED          → Notification Service
-AUTH_SELLER_DASHBOARD.USER_CREATED      → Seller Dashboard
-
-PRODUCT_NOTIFICATION.PRODUCT_CREATED   → Notification Service
-PRODUCT_SELLER_DASHBOARD.PRODUCT_CREATED → Seller Dashboard
-
-ORDER_SELLER_DASHBOARD.ORDER_CREATED    → Seller Dashboard
-
-PAYMENT_NOTIFICATION.PAYMENT_INITIATED → Notification Service
-PAYMENT_NOTIFICATION.PAYMENT_COMPLETED → Notification Service
-PAYMENT_NOTIFICATION.PAYMENT_FAILED    → Notification Service
-PAYMENT_SELLER_DASHBOARD.PAYMENT_CREATED → Seller Dashboard
-PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATED → Seller Dashboard
+```text
+MongoDB
+Redis
+RabbitMQ
 ```
 
 ---
 
-## ⚠️ Issues & Missing Code
+# 🧪 API Testing
 
-### Auth Service
+SwiftCart APIs can be tested using **Postman**.
 
-| # | File | Issue |
-|---|------|-------|
-| 1 | `Auth/src/db/db.js` | `catch` block references `err` but the parameter is named `error` — will throw a ReferenceError on DB connection failure |
-| 2 | `Auth/src/routes/auth.routes.js` | `GET /api/auth/user/users/me/addresses` has middleware in wrong order — `authController.getUserAddresses` is placed before `authMiddleware`, so the route runs the controller without authentication |
-| 3 | `Auth/src/routes/auth.routes.js` | `POST /users/me/addresses` is missing the `/api/auth` prefix, inconsistent with all other routes |
-| 4 | `Auth/src/routes/auth.routes.js` | `GET /api/auth/logout` should be a `POST` request — logout should not be a GET since it has side effects (blacklisting token) |
-| 5 | `Auth/src/middlewares/auth.middleware.js` | Does not check Redis blacklist before accepting the token — a logged-out token can still be used to authenticate |
-| 6 | `Auth/src/models/user.model.js` | Address schema uses `zip` field but the controller sends `pincode` — field name mismatch causes pincode to never be saved |
+Example API categories:
 
----
+### Products
 
-### Product Service
+```http
+GET    /api/products
+GET    /api/products/:id
+POST   /api/products
+PUT    /api/products/:id
+DELETE /api/products/:id
+```
 
-| # | File | Issue |
-|---|------|-------|
-| 7 | `product/src/controllers/product.controller.js` | `createProduct` calls `uploadImage(...)` directly but it is not imported — should be `imagekitService.uploadImage(...)` |
-| 8 | `product/src/models/product.model.js` | `productSchema.index(...)` is called after `mongoose.model(...)` — the text index must be defined before the model is compiled |
-| 9 | `product/src/routes/product.routes.js` | `GET /seller` route is defined after `GET /:id` — Express will match `/seller` as an `:id` param and never reach the seller route. It must be defined before `/:id` |
+### Cart
 
----
+```http
+GET    /api/cart
+POST   /api/cart
+PUT    /api/cart/:id
+DELETE /api/cart/:id
+```
 
-### Cart Service
+### Orders
 
-| # | File | Issue |
-|---|------|-------|
-| 10 | `cart/src/controllers/cart.controller.js` | `addItemToCart` and `updateItemQuantity` use `qty` variable which is never defined — the destructured variable is named `quantity` |
-| 11 | `cart/src/controllers/cart.controller.js` | `getCart` calls `cart.items.reduce((sum, item) => sum + item.quantity)` with no initial value — will crash on an empty cart |
+```http
+POST   /api/orders
+GET    /api/orders
+GET    /api/orders/:id
+PUT    /api/orders/:id
+```
 
----
+### AI Shopping Buddy
 
-### Order Service
+```http
+POST /api/ai/chat
+```
 
-| # | File | Issue |
-|---|------|-------|
-| 12 | `order/src/controllers/order.controller.js` | `createOrder`, `getMyOrders`, and `getOrderById` use `OrderModel` (capital O) which is never imported — the import is `orderModel` (lowercase) |
-| 13 | `order/src/controllers/order.controller.js` | `product.price * item.quantity` — `product.price` is an object `{ amount, currency }`, not a number. Should be `product.price.amount * item.quantity` |
-| 14 | `order/src/controllers/order.controller.js` | `product.inStock` is checked but the Product model has no `inStock` field — it has `stock` (Number). Should use `product.stock` |
-| 15 | `order/src/models/order.model.js` | `status` enum uses mixed casing: `'pending'` (lowercase) but controller sets `"PENDING"` and checks `"PENDING"` — will fail enum validation on create |
-| 16 | `order/src/models/order.model.js` | Total price field is named `totalprice` in the schema but the controller writes to `totalPrice` (camelCase) — data will never be saved |
-| 17 | `order/src/models/order.model.js` | `currency` is defined as a sibling of `price` inside `items[]` instead of being nested inside `price` — schema structure does not match what the controller writes |
+Example request:
 
----
-
-### Payment Service
-
-| # | File | Issue |
-|---|------|-------|
-| 18 | `Payment/src/controllers/payment.controller.js` | `razorpay.orders.create(price)` — Razorpay expects `{ amount, currency }` object but `price` from the order response may not match this shape directly |
-| 19 | `Payment/src/controllers/payment.controller.js` | Uses `require(...)` inside an ES module (`verifyPayment`) — mixing CommonJS `require` in an ESM file will throw a ReferenceError |
-| 20 | `Payment/src/models/payment.model.js` | `status` field is defined twice in the schema — the second definition overrides the first, but this is a code smell and should be cleaned up |
-| 21 | `Payment/src/app.js` | `cookierParser` is a typo — should be `cookieParser` |
+```json
+{
+  "message": "Suggest a good laptop for programming under ₹70000"
+}
+```
 
 ---
 
-### Seller Dashboard
+# 🔑 Core Microservice Concepts Demonstrated
 
-| # | File | Issue |
-|---|------|-------|
-| 22 | `seller-dashboard/src/routes/seller.routes.js` | `createAuthMiddleware` is called with two arguments `(["seller"], controller.getMetrics)` but the middleware factory only accepts `roles` — the controller is passed as a role, not as the route handler |
-| 23 | `seller-dashboard/src/routes/seller.routes.js` | Import path for controller is missing `.js` extension: `"../controllers/seller.controller"` — will fail in ESM |
-| 24 | `seller-dashboard/src/broker/listener.js` | Listens to `PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATE` but the Payment Service publishes `PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATED` — queue name mismatch means payment updates are never received |
+SwiftCart is designed to demonstrate practical backend engineering concepts including:
+
+* Microservice architecture
+* Service isolation
+* REST APIs
+* Event-driven architecture
+* Message queues
+* Asynchronous communication
+* Redis caching
+* Database-per-service principles
+* Docker containerization
+* API Gateway architecture
+* Fault isolation
+* Horizontal scalability
+* AI integration
+* Inter-service communication
 
 ---
 
-### AI Buddy
+# 📈 Future Improvements
 
-| # | File | Issue |
-|---|------|-------|
-| 25 | `ai-buddy/src/sockets/socket.server.js` | `socket.token` is never set — the JWT is decoded and stored as `socket.user` but the agent receives `socket.token` (undefined) as the auth token for tool calls |
-| 26 | `ai-buddy/src/agent/tools.js` | `searchProduct` uses `https://localhost:3000` — should be `http://localhost:3001` (Product Service port, not Auth, and not HTTPS for local dev) |
-| 27 | `ai-buddy/src/agent/tools.js` | `addProductToCart` sends `qty` in the request body but the Cart Service controller destructures `quantity` — the field name mismatch means quantity is always undefined |
+Possible future improvements include:
+
+* [ ] API Gateway with authentication
+* [ ] Centralized authentication service
+* [ ] Payment Service
+* [ ] Inventory Service
+* [ ] Elasticsearch-based product search
+* [ ] Kafka integration for high-volume events
+* [ ] Distributed tracing
+* [ ] Centralized logging
+* [ ] Prometheus + Grafana monitoring
+* [ ] Kubernetes deployment
+* [ ] CI/CD pipeline
+* [ ] AI-based personalized recommendations
+* [ ] AI shopping agent with tool calling
+* [ ] Product recommendation based on purchase history
+* [ ] Fault tolerance and retry mechanisms
+* [ ] Dead-letter queues
+* [ ] Circuit breaker pattern
+
+---
+
+# 🎯 Learning Objectives
+
+This project was built to understand how production-oriented backend systems can move beyond a traditional monolithic architecture.
+
+The project focuses on:
+
+```text
+Monolith
+   │
+   ▼
+Microservices
+   │
+   ├── REST APIs
+   ├── Redis
+   ├── RabbitMQ
+   ├── MongoDB
+   ├── Docker
+   └── AI Integration
+```
+
+The goal is to understand not only how to build APIs, but also how independent services communicate, share events, handle asynchronous workloads, and scale independently.
+
+---
+
+# 👨‍💻 Author
+
+**Shivam Tiwari**
+
+B.Tech Computer Science Engineering
+
+Interested in:
+
+* Backend Development
+* Microservices
+* Cloud Computing
+* Distributed Systems
+* AI & Agentic AI
+
+---
+
+# ⭐ If You Like This Project
+
+If you found SwiftCart useful for learning microservices, feel free to ⭐ the repository and explore the implementation.
