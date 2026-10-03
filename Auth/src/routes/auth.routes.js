@@ -13,11 +13,11 @@ router.post('/api/auth/login',validators.loginUserValidations,validators.respond
 
 router.get('/api/auth/me',authMiddleware.authMiddleware,authController.getCurrentUser);
 
-router.get('/api/auth/logout',authController.logoutUser);
+router.post('/api/auth/logout',authController.logoutUser);
 
-router.get('/api/auth/user/users/me/addresses',authController.getUserAddresses,authMiddleware.authMiddleware);
+router.get('/api/auth/users/me/addresses',authMiddleware.authMiddleware,authController.getUserAddresses);
 
-router.post('/users/me/addresses',authMiddleware.authMiddleware,validators.addUserAddressValidations,authController.addUserAddress);
+router.post('/api/auth/users/me/addresses',authMiddleware.authMiddleware,validators.addUserAddressValidations,authController.addUserAddress);
 
 router.delete('/api/auth/users/me/addresses/:addressId',authMiddleware.authMiddleware,authController.deleteUserAddress);
 export default router;

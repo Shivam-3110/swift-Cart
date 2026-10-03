@@ -6,6 +6,7 @@ const addressesSchema = new mongoose.Schema({
          city:String,
          state:String,
          zip:String,
+         pincode:String,
          country:String,
          isDefault:{type:Boolean , default:false}
 });
