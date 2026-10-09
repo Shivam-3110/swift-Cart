@@ -11,7 +11,7 @@ async function getCart(req,res){
         cart,
         totals:{
             itemCount:cart.items.length,
-            totalQuantity:cart.items.reduce((sum,item)=>sum+item.quantity)
+            totalQuantity:cart.items.reduce((sum,item)=>sum+item.quantity, 0)
         }
     });
 }
@@ -30,9 +30,9 @@ async function addItemToCart(req, res){
     }
     const existingItemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
     if(existingItemIndex >=0){
-        cart.items[existingItemIndex].quantity += qty;
+        cart.items[existingItemIndex].quantity += quantity;
     } else {
-        cart.items.push({productId, quantity:qty});
+        cart.items.push({productId, quantity});
     }
     await cart.save();
     res.status(200).json({message: 'Item added to cart', cart});
@@ -49,7 +49,7 @@ async function updateItemQuantity(req,res){
     if(existingItemIndex < 0){
         return res.status(404).json({message: 'Item not found in cart'});
     } 
-    cart.items[existingItemIndex].quantity = qty;
+    cart.items[existingItemIndex].quantity = quantity;
     await cart.save();
     return res.status(200).json({message: 'Cart item updated', cart});
 }
