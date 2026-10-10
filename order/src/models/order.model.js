@@ -25,21 +25,17 @@ const orderSchema = new mongoose.Schema({
           min:1
         },
         price:{
-          amount:{type:Number, required:true}
-        },
-        currency:{
-          type:String,
-          required:true,
-          enum:['USD',  'INR']
+          amount:{type:Number, required:true},
+          currency:{type:String, required:true, enum:['USD', 'INR']}
         }
 
     }],
     status:{
       type:String,
       required:true,
-      enum:['pending', 'Cancelled', 'shipped', 'delivered']
+      enum:['PENDING', 'CANCELLED', 'SHIPPED', 'DELIVERED']
     },
-    totalprice:{
+    totalPrice:{
       amount:{type:Number, required:true},
       currency:{type:String, required:true, enum:['USD',  'INR']}
     },

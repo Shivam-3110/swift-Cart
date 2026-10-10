@@ -23,11 +23,11 @@ const token = req.cookies?.token|| req.headers?.authorization?.split(" ")[1];
        let priceAmount = 0;
        const orderItems = cartResponse.data.cart.items.map((item, index)=>{
           const product = products.find(p=>p._id.toString()===item.productId);
- if(!product.inStock|| product.inStock<item.quantity){
+ if(!product.stock || product.stock < item.quantity){
     throw new Error(`Product ${product.name} is out of stock or does not have enough quantity`);
  }
 
-          const itemTotal = product.price * item.quantity;
+          const itemTotal = product.price.amount * item.quantity;
           priceAmount += itemTotal;
           return {
             productId: item.productId,
@@ -38,10 +38,10 @@ const token = req.cookies?.token|| req.headers?.authorization?.split(" ")[1];
             }
           }
        })   
-       const order = await OrderModel.create({
+       const order = await orderModel.create({
           user:user.id,
           items:orderItems,
-          status:"pending",
+          status:"PENDING",
          totalPrice: {
             amount:priceAmount,
             currency:"INR"},
@@ -66,8 +66,8 @@ async function getMyOrders(req, res){
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     try {
-        const orders = await OrderModel.find({user:user.id}).skip(skip).limit(limit).sort({createdAt:-1});
-        const totalOrders = await OrderModel.countDocuments({user:user.id});
+        const orders = await orderModel.find({user:user.id}).skip(skip).limit(limit).sort({createdAt:-1});
+        const totalOrders = await orderModel.countDocuments({user:user.id});
         res.status(200).json({
             orders,
            meta:{
@@ -85,7 +85,7 @@ async function getOrderById(req, res){
     const user = req.user;
     const orderId = req.params.id; 
     try {
-        const order = await OrderModel.findById(orderId);
+        const order = await orderModel.findById(orderId);
         if(!order){
             return res.status(404).json({message:"Order not found"});
         }
