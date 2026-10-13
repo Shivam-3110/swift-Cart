@@ -5,6 +5,8 @@ import  { publishToQueue } from "../broker/broker.js"
 
 import 'dotenv/config.js';
 import Razorpay from 'razorpay';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -28,7 +30,7 @@ async function createPayment(req, res) {
 
         const price = orderResponse.data.order.totalPrice;
 
-        const order = await razorpay.orders.create(price);
+        const order = await razorpay.orders.create({ amount: price.amount, currency: price.currency });
 
         const payment = await paymentModel.create({
             order: orderId,
@@ -63,7 +65,7 @@ async function verifyPayment(req, res) {
 
     try {
 
-        const { validatePaymentVerification } = require('../../node_modules/razorpay/dist/utils/razorpay-utils.js')
+        const { validatePaymentVerification } = require('razorpay/dist/utils/razorpay-utils.js')
 
         const isValid = validatePaymentVerification({
             order_id: razorpayOrderId,

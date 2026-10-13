@@ -9,7 +9,9 @@ const paymentSchema = new mongoose.Schema({
          },
          status:{
             type:String,
-            required:true   
+            enum:['PENDING','COMPLETED','FAILED'],
+            default:'PENDING',
+            required:true
          },
          // this order id is generated from payment gateway
          razorpayOrderId:{
@@ -17,11 +19,6 @@ const paymentSchema = new mongoose.Schema({
         },
         signature:{
             type:String,
-         },
-         status:{
-            type:String,
-            enum:['pending','completed','failed'],
-            default:'pending'
          },
          user:{
             type:mongoose.Schema.Types.ObjectId,
