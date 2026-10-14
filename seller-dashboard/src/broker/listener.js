@@ -21,7 +21,7 @@ const registerSellerDashboardConsumers = async () => {
         await paymentModel.create(payment);
     });
 
-    subscribeToQueue("PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATE", async (payment) => {
+    subscribeToQueue("PAYMENT_SELLER_DASHBOARD.PAYMENT_UPDATED", async (payment) => {
         await paymentModel.findOneAndUpdate(
             { orderId: payment.orderId },
             { ...payment }
