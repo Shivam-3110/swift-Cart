@@ -8,7 +8,7 @@ const searchProduct = tool(async ({query,token})=>{
     console.log("searchProdcut called with data:",{query,token})
 
 
-const response = await axios.get(`https://localhost:3000/api/products?q=${query}`,{
+const response = await axios.get(`http://localhost:3001/api/products?q=${query}`,{
     headers:{
         Authorization:`Bearer ${token}`
     }
@@ -23,25 +23,25 @@ const response = await axios.get(`https://localhost:3000/api/products?q=${query}
     })
 })
 
-const addProductToCart = tool(async({productId,qty = 1,token})=>{
+const addProductToCart = tool(async({productId, quantity = 1, token})=>{
 
     const response = await axios.post(`http://localhost:3002/api/cart/items`,{
         productId,
-        qty
+        quantity
     },{
         headers:{
             Authorization:`Bearer ${token}`
         }
     })
 
-    return `added product with id ${productId} to cart with quantity ${qty}`;
+    return `added product with id ${productId} to cart with quantity ${quantity}`;
 
 },{
     name:"addproducttocart",
     description:"add a product to the user's shopping cart",
     schema:z.object({
         productId:z.string().describe("the ID of the product to add to the cart"),
-        qty:z.number().describe("the quantity of the product to add").default(1),
+        quantity:z.number().describe("the quantity of the product to add").default(1),
     })
 })
 

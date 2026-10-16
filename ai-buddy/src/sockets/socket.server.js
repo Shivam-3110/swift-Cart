@@ -17,6 +17,7 @@ export async function initSocketServer(httpServer) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.user = decoded;
+      socket.token = token;
       next();
     } catch (error) {
       next(new Error("Invalid token"));
