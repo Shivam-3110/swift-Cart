@@ -1,0 +1,857 @@
+================================================================
+  SWIFTCART — COMPLETE API TEST GUIDE
+  Base URLs:
+    Auth Service        → http://localhost:3000
+    Product Service     → http://localhost:3001
+    Cart Service        → http://localhost:3002
+    Order Service       → http://localhost:3003
+    Payment Service     → http://localhost:3004
+    Seller Dashboard    → http://localhost:3005
+    AI Buddy            → http://localhost:3006 (WebSocket)
+
+  Auth: Pass JWT as Bearer token in Authorization header
+        OR it is set automatically via httpOnly cookie on login/register
+================================================================
+
+
+================================================================
+  1. AUTH SERVICE  (http://localhost:3000)
+================================================================
+
+----------------------------------------------------------------
+1.1  Register a new USER
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "testuser@example.com",
+  "password": "Password@123",
+  "fullName": {
+    "firstName": "Test",
+    "lastName": "User"
+  },
+  "role": "user"
+}
+
+Expected: 201
+{
+  "message": "User registered successfully",
+  "user": {
+    "id": "<userId>",
+    "username": "testuser",
+    "email": "testuser@example.com",
+    "fullName": { "firstName": "Test", "lastName": "User" },
+    "role": "user",
+    "addresses": []
+  }
+}
+
+----------------------------------------------------------------
+1.2  Register a new SELLER
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testseller",
+  "email": "testseller@example.com",
+  "password": "Password@123",
+  "fullName": {
+    "firstName": "Test",
+    "lastName": "Seller"
+  },
+  "role": "seller"
+}
+
+Expected: 201 — same shape as above with role: "seller"
+
+----------------------------------------------------------------
+1.3  Register — duplicate username/email (conflict)
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "testuser@example.com",
+  "password": "Password@123",
+  "fullName": { "firstName": "Test", "lastName": "User" },
+  "role": "user"
+}
+
+Expected: 409
+{ "message": "Username or email already exists" }
+
+----------------------------------------------------------------
+1.4  Login as user
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "Password@123"
+}
+
+Expected: 200
+{
+  "message": "Logged in successfully",
+  "user": { "id": "<userId>", "username": "testuser", "role": "user", ... }
+}
+NOTE: Save the token from the cookie or response for subsequent requests.
+
+----------------------------------------------------------------
+1.5  Login as seller
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "testseller@example.com",
+  "password": "Password@123"
+}
+
+Expected: 200 — role: "seller"
+
+----------------------------------------------------------------
+1.6  Login — wrong password
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "WrongPassword"
+}
+
+Expected: 401
+{ "message": "Invalid credentials" }
+
+----------------------------------------------------------------
+1.7  Get current user (authenticated)
+----------------------------------------------------------------
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "message": "Current user fetched successfully",
+  "user": { "id": "...", "username": "testuser", "role": "user", ... }
+}
+
+----------------------------------------------------------------
+1.8  Get current user — no token
+----------------------------------------------------------------
+GET http://localhost:3000/api/auth/me
+
+Expected: 401
+{ "message": "Unauthorized: No token provided" }
+
+----------------------------------------------------------------
+1.9  Add address
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/users/me/addresses
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "street": "123 Main Street",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "pincode": "400001",
+  "country": "India",
+  "isDefault": true
+}
+
+Expected: 201
+{
+  "message": "Address added successfully",
+  "address": { "_id": "<addressId>", "street": "123 Main Street", ... }
+}
+NOTE: Save <addressId> for the delete test below.
+
+----------------------------------------------------------------
+1.10  Get all addresses
+----------------------------------------------------------------
+GET http://localhost:3000/api/auth/users/me/addresses
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "message": "User addresses fetched successfully",
+  "addresses": [ { "_id": "<addressId>", "street": "123 Main Street", ... } ]
+}
+
+----------------------------------------------------------------
+1.11  Delete address
+----------------------------------------------------------------
+DELETE http://localhost:3000/api/auth/users/me/addresses/<addressId>
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "message": "Address deleted successfully",
+  "addresses": []
+}
+
+----------------------------------------------------------------
+1.12  Delete address — not found
+----------------------------------------------------------------
+DELETE http://localhost:3000/api/auth/users/me/addresses/000000000000000000000000
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 404
+{ "message": "Address not found" }
+
+----------------------------------------------------------------
+1.13  Logout
+----------------------------------------------------------------
+POST http://localhost:3000/api/auth/logout
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{ "message": "Logged out successfully" }
+
+----------------------------------------------------------------
+1.14  Use token after logout (blacklisted)
+----------------------------------------------------------------
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer <OLD_USER_TOKEN>
+
+Expected: 401
+{ "message": "Unauthorized: Invalid token" }
+
+
+================================================================
+  2. PRODUCT SERVICE  (http://localhost:3001)
+================================================================
+NOTE: All seller routes require SELLER_TOKEN from step 1.5
+
+----------------------------------------------------------------
+2.1  Create a product (seller only, multipart/form-data)
+----------------------------------------------------------------
+POST http://localhost:3001/api/products
+Authorization: Bearer <SELLER_TOKEN>
+Content-Type: multipart/form-data
+
+Fields:
+  title        = "Mechanical Keyboard"
+  description  = "RGB backlit mechanical keyboard with Cherry MX switches"
+  priceAmount  = 4500
+  priceCurrency= "INR"
+  images       = <attach 1-5 image files>
+
+Expected: 201
+{
+  "message": "Product created",
+  "data": {
+    "_id": "<productId>",
+    "title": "Mechanical Keyboard",
+    "price": { "amount": 4500, "currency": "INR" },
+    "seller": "<sellerId>",
+    "stock": 0,
+    "images": [ { "url": "...", "thumbnail": "...", "id": "..." } ]
+  }
+}
+NOTE: Save <productId> for all subsequent product/cart/order tests.
+
+----------------------------------------------------------------
+2.2  Create product — unauthorized (user role)
+----------------------------------------------------------------
+POST http://localhost:3001/api/products
+Authorization: Bearer <USER_TOKEN>
+Content-Type: multipart/form-data
+
+Fields: title="Test", priceAmount=100
+
+Expected: 403
+{ "message": "Forbidden: Insufficient permissions" }
+
+----------------------------------------------------------------
+2.3  Get all products (public, no auth)
+----------------------------------------------------------------
+GET http://localhost:3001/api/products
+
+Expected: 200
+{ "data": [ { "_id": "...", "title": "Mechanical Keyboard", ... } ] }
+
+----------------------------------------------------------------
+2.4  Get products — search by keyword
+----------------------------------------------------------------
+GET http://localhost:3001/api/products?q=keyboard
+
+Expected: 200
+{ "data": [ { "title": "Mechanical Keyboard", ... } ] }
+
+----------------------------------------------------------------
+2.5  Get products — filter by price range
+----------------------------------------------------------------
+GET http://localhost:3001/api/products?minprice=1000&maxprice=5000
+
+Expected: 200 — products with price.amount between 1000 and 5000
+
+----------------------------------------------------------------
+2.6  Get products — pagination
+----------------------------------------------------------------
+GET http://localhost:3001/api/products?skip=0&limit=5
+
+Expected: 200 — max 5 products
+
+----------------------------------------------------------------
+2.7  Get product by ID (public)
+----------------------------------------------------------------
+GET http://localhost:3001/api/products/<productId>
+
+Expected: 200
+{ "data": { "_id": "<productId>", "title": "Mechanical Keyboard", ... } }
+
+----------------------------------------------------------------
+2.8  Get product by ID — not found
+----------------------------------------------------------------
+GET http://localhost:3001/api/products/000000000000000000000000
+
+Expected: 404
+{ "message": "Product not found" }
+
+----------------------------------------------------------------
+2.9  Get product by ID — invalid ID format
+----------------------------------------------------------------
+GET http://localhost:3001/api/products/invalid-id
+
+Expected: 400
+{ "message": "Invalid product id" }
+
+----------------------------------------------------------------
+2.10  Get seller's own products
+----------------------------------------------------------------
+GET http://localhost:3001/api/products/seller
+Authorization: Bearer <SELLER_TOKEN>
+
+Expected: 200
+{ "data": [ { "_id": "<productId>", "seller": "<sellerId>", ... } ] }
+
+----------------------------------------------------------------
+2.11  Update product (seller only)
+----------------------------------------------------------------
+PATCH http://localhost:3001/api/products/<productId>
+Authorization: Bearer <SELLER_TOKEN>
+Content-Type: application/json
+
+{
+  "title": "Mechanical Keyboard Pro",
+  "description": "Updated description",
+  "price": { "amount": 4999, "currency": "INR" }
+}
+
+Expected: 200
+{ "message": "Product updated", "product": { "title": "Mechanical Keyboard Pro", ... } }
+
+----------------------------------------------------------------
+2.12  Update product — wrong seller (forbidden)
+----------------------------------------------------------------
+PATCH http://localhost:3001/api/products/<productId>
+Authorization: Bearer <ANOTHER_SELLER_TOKEN>
+Content-Type: application/json
+
+{ "title": "Hacked Title" }
+
+Expected: 403
+{ "message": "Forbidden: You can only update your own products" }
+
+----------------------------------------------------------------
+2.13  Delete product (seller only)
+----------------------------------------------------------------
+DELETE http://localhost:3001/api/products/<productId>
+Authorization: Bearer <SELLER_TOKEN>
+
+Expected: 200
+{ "message": "Product deleted" }
+
+----------------------------------------------------------------
+2.14  Delete product — wrong seller (forbidden)
+----------------------------------------------------------------
+DELETE http://localhost:3001/api/products/<productId>
+Authorization: Bearer <ANOTHER_SELLER_TOKEN>
+
+Expected: 403
+{ "message": "Forbidden: You can only delete your own products" }
+
+
+================================================================
+  3. CART SERVICE  (http://localhost:3002)
+================================================================
+NOTE: Cart routes require USER_TOKEN. Role must be "user".
+      Make sure a product exists with stock > 0 before testing.
+
+----------------------------------------------------------------
+3.1  Get cart (creates empty cart if none exists)
+----------------------------------------------------------------
+GET http://localhost:3002/api/cart
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "cart": { "user": "<userId>", "items": [] },
+  "totals": { "itemCount": 0, "totalQuantity": 0 }
+}
+
+----------------------------------------------------------------
+3.2  Add item to cart
+----------------------------------------------------------------
+POST http://localhost:3002/api/cart/items
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "productId": "<productId>",
+  "quantity": 2
+}
+
+Expected: 200
+{
+  "message": "Item added to cart",
+  "cart": { "items": [ { "productId": "<productId>", "quantity": 2 } ] }
+}
+
+----------------------------------------------------------------
+3.3  Add same item again (quantity accumulates)
+----------------------------------------------------------------
+POST http://localhost:3002/api/cart/items
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "productId": "<productId>",
+  "quantity": 1
+}
+
+Expected: 200 — item quantity is now 3
+
+----------------------------------------------------------------
+3.4  Add item — missing productId (validation error)
+----------------------------------------------------------------
+POST http://localhost:3002/api/cart/items
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{ "quantity": 2 }
+
+Expected: 400 (validation error)
+
+----------------------------------------------------------------
+3.5  Update item quantity
+----------------------------------------------------------------
+PATCH http://localhost:3002/api/cart/items/<productId>
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{ "quantity": 5 }
+
+Expected: 200
+{ "message": "Cart item updated", "cart": { "items": [ { "quantity": 5 } ] } }
+
+----------------------------------------------------------------
+3.6  Update item — product not in cart
+----------------------------------------------------------------
+PATCH http://localhost:3002/api/cart/items/000000000000000000000000
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{ "quantity": 1 }
+
+Expected: 404
+{ "message": "Item not found in cart" }
+
+----------------------------------------------------------------
+3.7  Get cart after adding items
+----------------------------------------------------------------
+GET http://localhost:3002/api/cart
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "cart": { "items": [ { "productId": { "_id": "...", "title": "..." }, "quantity": 5 } ] },
+  "totals": { "itemCount": 1, "totalQuantity": 5 }
+}
+
+
+================================================================
+  4. ORDER SERVICE  (http://localhost:3003)
+================================================================
+PREREQUISITE: Cart must have at least one item with sufficient stock.
+
+----------------------------------------------------------------
+4.1  Create order
+----------------------------------------------------------------
+POST http://localhost:3003/api/orders
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "shippingAddress": {
+    "street": "123 Main Street",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "pincode": "400001",
+    "country": "India"
+  }
+}
+
+Expected: 201
+{
+  "order": {
+    "_id": "<orderId>",
+    "user": "<userId>",
+    "status": "PENDING",
+    "items": [ { "productId": "...", "quantity": 5, "price": { "amount": 22495, "currency": "INR" } } ],
+    "totalPrice": { "amount": 22495, "currency": "INR" },
+    "shippingAddress": { "street": "123 Main Street", ... }
+  }
+}
+NOTE: Save <orderId> for payment and cancel tests.
+
+----------------------------------------------------------------
+4.2  Create order — out of stock product
+----------------------------------------------------------------
+(Set product stock to 0 in DB, then attempt)
+POST http://localhost:3003/api/orders
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{ "shippingAddress": { "street": "...", "city": "...", "state": "...", "pincode": "...", "country": "..." } }
+
+Expected: 500
+{ "message": "Internal server error", "error": "Product ... is out of stock or does not have enough quantity" }
+
+----------------------------------------------------------------
+4.3  Get my orders (paginated)
+----------------------------------------------------------------
+GET http://localhost:3003/api/orders/me
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{
+  "orders": [ { "_id": "<orderId>", "status": "PENDING", ... } ],
+  "meta": { "total": 1, "page": 1, "limit": 10 }
+}
+
+----------------------------------------------------------------
+4.4  Get my orders — page 2
+----------------------------------------------------------------
+GET http://localhost:3003/api/orders/me?page=2&limit=5
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200 — orders array may be empty if fewer than 6 orders exist
+
+----------------------------------------------------------------
+4.5  Get order by ID (owner)
+----------------------------------------------------------------
+GET http://localhost:3003/api/orders/<orderId>
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{ "order": { "_id": "<orderId>", "status": "PENDING", ... } }
+
+----------------------------------------------------------------
+4.6  Get order by ID — not found
+----------------------------------------------------------------
+GET http://localhost:3003/api/orders/000000000000000000000000
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 404
+{ "message": "Order not found" }
+
+----------------------------------------------------------------
+4.7  Get order by ID — different user (forbidden)
+----------------------------------------------------------------
+GET http://localhost:3003/api/orders/<orderId>
+Authorization: Bearer <ANOTHER_USER_TOKEN>
+
+Expected: 403
+{ "message": "Forbidden" }
+
+----------------------------------------------------------------
+4.8  Update shipping address (PENDING order only)
+----------------------------------------------------------------
+PATCH http://localhost:3003/api/orders/<orderId>/address
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "shippingAddress": {
+    "street": "456 New Street",
+    "city": "Delhi",
+    "state": "Delhi",
+    "pincode": "110001",
+    "country": "India"
+  }
+}
+
+Expected: 200
+{ "order": { "shippingAddress": { "street": "456 New Street", ... } } }
+
+----------------------------------------------------------------
+4.9  Cancel order (PENDING only)
+----------------------------------------------------------------
+POST http://localhost:3003/api/orders/<orderId>/cancel
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 200
+{ "order": { "_id": "<orderId>", "status": "CANCELLED" } }
+
+----------------------------------------------------------------
+4.10  Cancel already-cancelled order
+----------------------------------------------------------------
+POST http://localhost:3003/api/orders/<orderId>/cancel
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 409
+{ "message": "Order cannot be cancelled at this stage" }
+
+----------------------------------------------------------------
+4.11  Update address on cancelled order
+----------------------------------------------------------------
+PATCH http://localhost:3003/api/orders/<orderId>/address
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{ "shippingAddress": { "street": "...", "city": "...", "state": "...", "pincode": "...", "country": "..." } }
+
+Expected: 409
+{ "message": "Order address cannot be updated at this stage" }
+
+
+================================================================
+  5. PAYMENT SERVICE  (http://localhost:3004)
+================================================================
+PREREQUISITE: A PENDING order must exist. Razorpay test credentials
+              must be set in Payment/.env.
+
+----------------------------------------------------------------
+5.1  Initiate payment for an order
+----------------------------------------------------------------
+POST http://localhost:3004/api/payments/create/<orderId>
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 201
+{
+  "message": "Payment initiated",
+  "payment": {
+    "_id": "<paymentId>",
+    "order": "<orderId>",
+    "razorpayOrderId": "order_XXXXXXXXXX",
+    "status": "PENDING",
+    "price": { "amount": 22495, "currency": "INR" }
+  }
+}
+NOTE: Save razorpayOrderId, and use Razorpay test dashboard to get
+      a test paymentId and signature for step 5.2.
+
+----------------------------------------------------------------
+5.2  Verify payment (after Razorpay checkout)
+----------------------------------------------------------------
+POST http://localhost:3004/api/payments/verify
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "order_XXXXXXXXXX",
+  "paymentId": "pay_XXXXXXXXXX",
+  "signature": "<hmac_sha256_signature>"
+}
+
+Expected: 200
+{
+  "message": "Payment verified successfully",
+  "payment": { "status": "COMPLETED", "paymentId": "pay_XXXXXXXXXX", ... }
+}
+
+----------------------------------------------------------------
+5.3  Verify payment — invalid signature
+----------------------------------------------------------------
+POST http://localhost:3004/api/payments/verify
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "order_XXXXXXXXXX",
+  "paymentId": "pay_XXXXXXXXXX",
+  "signature": "invalidsignature"
+}
+
+Expected: 400
+{ "message": "Invalid signature" }
+
+----------------------------------------------------------------
+5.4  Verify payment — payment record not found
+----------------------------------------------------------------
+POST http://localhost:3004/api/payments/verify
+Authorization: Bearer <USER_TOKEN>
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "order_NONEXISTENT",
+  "paymentId": "pay_XXXXXXXXXX",
+  "signature": "<valid_signature_for_above>"
+}
+
+Expected: 404
+{ "message": "Payment not found" }
+
+
+================================================================
+  6. SELLER DASHBOARD  (http://localhost:3005)
+================================================================
+NOTE: All routes require SELLER_TOKEN (role: "seller").
+      Data is synced via RabbitMQ — ensure events were published
+      by creating products/orders/payments first.
+
+----------------------------------------------------------------
+6.1  Get seller metrics
+----------------------------------------------------------------
+GET http://localhost:3005/metrics
+Authorization: Bearer <SELLER_TOKEN>
+
+Expected: 200
+{
+  "sales": 5,
+  "revenue": 22495,
+  "topProducts": [
+    { "id": "<productId>", "title": "Mechanical Keyboard Pro", "sold": 5 }
+  ]
+}
+
+----------------------------------------------------------------
+6.2  Get seller orders
+----------------------------------------------------------------
+GET http://localhost:3005/orders
+Authorization: Bearer <SELLER_TOKEN>
+
+Expected: 200
+[
+  {
+    "_id": "<orderId>",
+    "status": "PENDING",
+    "items": [ { "product": "<productId>", "quantity": 5, ... } ],
+    ...
+  }
+]
+
+----------------------------------------------------------------
+6.3  Get seller products
+----------------------------------------------------------------
+GET http://localhost:3005/products
+Authorization: Bearer <SELLER_TOKEN>
+
+Expected: 200
+[ { "_id": "<productId>", "title": "Mechanical Keyboard Pro", "seller": "<sellerId>", ... } ]
+
+----------------------------------------------------------------
+6.4  Access seller dashboard as user (forbidden)
+----------------------------------------------------------------
+GET http://localhost:3005/metrics
+Authorization: Bearer <USER_TOKEN>
+
+Expected: 403
+{ "message": "Forbidden: Insufficient permissions" }
+
+----------------------------------------------------------------
+6.5  Access seller dashboard — no token
+----------------------------------------------------------------
+GET http://localhost:3005/metrics
+
+Expected: 401
+{ "message": "Unauthorized: No token provided" }
+
+
+================================================================
+  7. AI BUDDY  (http://localhost:3006 — WebSocket / Socket.IO)
+================================================================
+NOTE: Connect using Socket.IO client. The JWT must be present as
+      an httpOnly cookie named "token" (set during login).
+      You can test with the Socket.IO client library or Postman
+      WebSocket with cookie header.
+
+----------------------------------------------------------------
+7.1  Connect — authenticated user
+----------------------------------------------------------------
+Connect to: ws://localhost:3006
+Cookie: token=<USER_TOKEN>
+
+Expected: Connection established (no error event)
+
+----------------------------------------------------------------
+7.2  Connect — no token
+----------------------------------------------------------------
+Connect to: ws://localhost:3006
+(no cookie)
+
+Expected: Connection refused with error "token not found"
+
+----------------------------------------------------------------
+7.3  Connect — invalid token
+----------------------------------------------------------------
+Connect to: ws://localhost:3006
+Cookie: token=invalidtoken
+
+Expected: Connection refused with error "Invalid token"
+
+----------------------------------------------------------------
+7.4  Send a product search message
+----------------------------------------------------------------
+Event:   message
+Payload: "I need a laptop for programming under 70000 rupees"
+
+Expected response event: message
+Payload (example):
+  "Here are some laptops I found under ₹70,000: ..."
+  (Agent calls search_product tool internally, returns AI response)
+
+----------------------------------------------------------------
+7.5  Add product to cart via AI
+----------------------------------------------------------------
+Event:   message
+Payload: "Add the first laptop to my cart with quantity 1"
+
+Expected response event: message
+Payload (example):
+  "I've added [product name] to your cart!"
+  (Agent calls addproducttocart tool internally)
+
+----------------------------------------------------------------
+7.6  General shopping question (no tool call)
+----------------------------------------------------------------
+Event:   message
+Payload: "What is the return policy?"
+
+Expected response event: message
+Payload: Conversational AI response (no tool invoked)
+
+
+================================================================
+  8. END-TO-END FLOW TEST
+================================================================
+This tests the complete happy path across all services.
+
+Step 1  → Register user          (Auth — 1.1)
+Step 2  → Register seller        (Auth — 1.2)
+Step 3  → Login as seller        (Auth — 1.5)
+Step 4  → Create product         (Product — 2.1)
+           Set stock > 0 in DB or via a stock update
+Step 5  → Login as user          (Auth — 1.4)
+Step 6  → Add product to cart    (Cart — 3.2)
+Step 7  → Create order           (Order — 4.1)
+Step 8  → Initiate payment       (Payment — 5.1)
+Step 9  → Verify payment         (Payment — 5.2)
+Step 10 → Login as seller        (Auth — 1.5)
+Step 11 → Check seller metrics   (Seller Dashboard — 6.1)
+           Verify revenue and sales reflect the completed order
+Step 12 → Connect AI Buddy       (AI Buddy — 7.1)
+Step 13 → Search product via AI  (AI Buddy — 7.4)
+Step 14 → Add to cart via AI     (AI Buddy — 7.5)
+
+================================================================
+  END OF TEST GUIDE
+================================================================
